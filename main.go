@@ -1,7 +1,9 @@
 package main
 
-import "fmt"
+import (
+	"github.com/dreamsofcode-io/cli-cms/cmd"
+)
 
 func main() {
-	fmt.Println("Hello, CMS")
+	cmd.Execute()
 }
