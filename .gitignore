@@ -1,2 +1,4 @@
 *.sqlite
 cli-cms
+# Added by goreleaser init:
+dist/
