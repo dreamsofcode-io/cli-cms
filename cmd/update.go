@@ -10,6 +10,7 @@ import (
 	"fmt"
 
 	"github.com/dreamsofcode-io/cli-cms/internal/database"
+	"github.com/dreamsofcode-io/cli-cms/internal/editor"
 	"github.com/spf13/cobra"
 )
 
@@ -40,9 +41,10 @@ func updatePost(cmd *cobra.Command, args []string) error {
 	titleSet := cmd.Flags().Changed(titleFlagName)
 	contentSet := cmd.Flags().Changed(contentFlagName)
 	authorSet := cmd.Flags().Changed(authorFlagName)
+	editorSet := cmd.Flags().Changed(editorFlagName)
 
-	if !titleSet && !contentSet && !authorSet {
-		return errors.New("at least one field must be specified to update (--title, --content, or --author)")
+	if !titleSet && !contentSet && !authorSet && !editorSet {
+		return errors.New("at least one field must be specified to update (--title, --content, --author, or --editor)")
 	}
 
 	// Get database URL from global flag
@@ -63,6 +65,28 @@ func updatePost(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("failed to connect to database: %w", err)
 	}
 
+	// First, get the existing post to use for editor template
+	var existingPost *database.Post
+	if idSet {
+		id, err := cmd.Flags().GetInt(idFlagName)
+		if err != nil {
+			return err
+		}
+		existingPost, err = db.GetPostByID(ctx, id)
+		if err != nil {
+			return fmt.Errorf("failed to get existing post: %w", err)
+		}
+	} else if slugSet {
+		slug, err := cmd.Flags().GetString(slugFlagName)
+		if err != nil {
+			return err
+		}
+		existingPost, err = db.GetPostBySlug(ctx, slug)
+		if err != nil {
+			return fmt.Errorf("failed to get existing post: %w", err)
+		}
+	}
+
 	// Build the update struct with only changed fields
 	var updates database.Post
 
@@ -73,15 +97,55 @@ func updatePost(cmd *cobra.Command, args []string) error {
 		}
 	}
 
-	if contentSet {
-		updates.Content, err = cmd.Flags().GetString(contentFlagName)
+	if authorSet {
+		updates.Author, err = cmd.Flags().GetString(authorFlagName)
 		if err != nil {
 			return err
 		}
 	}
 
-	if authorSet {
-		updates.Author, err = cmd.Flags().GetString(authorFlagName)
+	// Handle content updates
+	if editorSet {
+		// Use editor for content input
+		useEditor, err := cmd.Flags().GetBool(editorFlagName)
+		if err != nil {
+			return err
+		}
+
+		if useEditor {
+			if verbose {
+				fmt.Printf("Opening editor for content editing...\n")
+			}
+
+			ed := editor.New()
+			if !ed.IsAvailable() {
+				return fmt.Errorf("editor not available: %s", ed.GetEditorInfo())
+			}
+
+			if verbose {
+				fmt.Printf("Using editor: %s\n", ed.GetEditorInfo())
+			}
+
+			// Use existing post data for template
+			templateTitle := existingPost.Title
+			templateAuthor := existingPost.Author
+			if titleSet {
+				templateTitle = updates.Title
+			}
+			if authorSet {
+				templateAuthor = updates.Author
+			}
+
+			editedContent, err := ed.EditContentWithTemplate(templateTitle, templateAuthor, existingPost.Content, true)
+			if err != nil {
+				return fmt.Errorf("failed to edit content: %w", err)
+			}
+
+			updates.Content = editedContent
+		}
+	} else if contentSet {
+		// Get content from flag
+		updates.Content, err = cmd.Flags().GetString(contentFlagName)
 		if err != nil {
 			return err
 		}
@@ -148,6 +212,7 @@ func init() {
 	
 	// Add flags for updatable fields
 	updateCmd.Flags().StringP(titleFlagName, "t", "", "New title for the post")
-	updateCmd.Flags().StringP(contentFlagName, "c", "", "New content for the post")
+	updateCmd.Flags().StringP(contentFlagName, "c", "", "New content for the post (ignored if --editor is used)")
 	updateCmd.Flags().StringP(authorFlagName, "a", "", "New author for the post")
+	updateCmd.Flags().BoolP(editorFlagName, "e", false, "Open editor for content editing")
 }

@@ -10,6 +10,7 @@ import (
 	"fmt"
 
 	"github.com/dreamsofcode-io/cli-cms/internal/database"
+	"github.com/dreamsofcode-io/cli-cms/internal/editor"
 	"github.com/spf13/cobra"
 )
 
@@ -18,6 +19,7 @@ const (
 	contentFlagName = "content"
 	authorFlagName  = "author"
 	slugFlagName    = "slug"
+	editorFlagName  = "editor"
 )
 
 // createCmd represents the create command
@@ -54,11 +56,6 @@ func createPost(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	content, err := cmd.Flags().GetString(contentFlagName)
-	if err != nil {
-		return err
-	}
-
 	author, err := cmd.Flags().GetString(authorFlagName)
 	if err != nil {
 		return err
@@ -67,6 +64,47 @@ func createPost(cmd *cobra.Command, args []string) error {
 	slug, err := cmd.Flags().GetString(slugFlagName)
 	if err != nil {
 		return err
+	}
+
+	// Check if we should use editor or content flag
+	useEditor, err := cmd.Flags().GetBool(editorFlagName)
+	if err != nil {
+		return err
+	}
+
+	var content string
+
+	if useEditor {
+		// Use editor for content input
+		if verbose {
+			fmt.Printf("Opening editor for content input...\n")
+		}
+
+		ed := editor.New()
+		if !ed.IsAvailable() {
+			return fmt.Errorf("editor not available: %s", ed.GetEditorInfo())
+		}
+
+		if verbose {
+			fmt.Printf("Using editor: %s\n", ed.GetEditorInfo())
+		}
+
+		editedContent, err := ed.EditContentWithTemplate(title, author, "", false)
+		if err != nil {
+			return fmt.Errorf("failed to edit content: %w", err)
+		}
+
+		content = editedContent
+
+		if content == "" {
+			return errors.New("content cannot be empty when using editor")
+		}
+	} else {
+		// Get content from flag
+		content, err = cmd.Flags().GetString(contentFlagName)
+		if err != nil {
+			return err
+		}
 	}
 
 	// Get database connection
@@ -116,7 +154,8 @@ func init() {
 
 	// Add flags for post creation
 	createCmd.Flags().StringP(titleFlagName, "t", "", "Title of the post (required)")
-	createCmd.Flags().StringP(contentFlagName, "c", "", "Content of the post")
+	createCmd.Flags().StringP(contentFlagName, "c", "", "Content of the post (ignored if --editor is used)")
 	createCmd.Flags().StringP(authorFlagName, "a", "", "Author of the post")
 	createCmd.Flags().StringP(slugFlagName, "s", "", "URL slug for the post")
+	createCmd.Flags().BoolP(editorFlagName, "e", false, "Open editor for content input")
 }
