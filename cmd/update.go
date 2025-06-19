@@ -5,9 +5,11 @@ Copyright © 2025 dreamsofcode
 package cmd
 
 import (
+	"context"
 	"errors"
 	"fmt"
 
+	"github.com/dreamsofcode-io/cli-cms/internal/database"
 	"github.com/spf13/cobra"
 )
 
@@ -20,6 +22,8 @@ var updateCmd = &cobra.Command{
 }
 
 func updatePost(cmd *cobra.Command, args []string) error {
+	ctx := context.Background()
+
 	// Check if either id or slug flag was set for identification
 	idSet := cmd.Flags().Changed(idFlagName)
 	slugSet := cmd.Flags().Changed(slugFlagName)
@@ -41,13 +45,64 @@ func updatePost(cmd *cobra.Command, args []string) error {
 		return errors.New("at least one field must be specified to update (--title, --content, or --author)")
 	}
 
-	// Display which post is being updated
+	// Get database URL from global flag
+	databaseURL, err := cmd.Flags().GetString(databaseURLFlagName)
+	if err != nil {
+		return err
+	}
+
+	// Get verbose flag
+	verbose, err := cmd.Flags().GetBool(verboseFlagName)
+	if err != nil {
+		return err
+	}
+
+	// Get database connection
+	db, err := database.GetDatabase(ctx, databaseURL)
+	if err != nil {
+		return fmt.Errorf("failed to connect to database: %w", err)
+	}
+
+	// Build the update struct with only changed fields
+	var updates database.Post
+
+	if titleSet {
+		updates.Title, err = cmd.Flags().GetString(titleFlagName)
+		if err != nil {
+			return err
+		}
+	}
+
+	if contentSet {
+		updates.Content, err = cmd.Flags().GetString(contentFlagName)
+		if err != nil {
+			return err
+		}
+	}
+
+	if authorSet {
+		updates.Author, err = cmd.Flags().GetString(authorFlagName)
+		if err != nil {
+			return err
+		}
+	}
+
+	var updatedPost *database.Post
+
 	if idSet {
 		id, err := cmd.Flags().GetInt(idFlagName)
 		if err != nil {
 			return err
 		}
-		fmt.Printf("Updating post with ID: %d\n", id)
+
+		if verbose {
+			fmt.Printf("Updating post with ID: %d\n", id)
+		}
+
+		updatedPost, err = db.UpdatePostByID(ctx, id, updates)
+		if err != nil {
+			return fmt.Errorf("failed to update post: %w", err)
+		}
 	}
 
 	if slugSet {
@@ -55,35 +110,31 @@ func updatePost(cmd *cobra.Command, args []string) error {
 		if err != nil {
 			return err
 		}
-		fmt.Printf("Updating post with slug: %s\n", slug)
-	}
 
-	// Show what fields are being updated
-	fmt.Println("Fields to update:")
-
-	if titleSet {
-		title, err := cmd.Flags().GetString(titleFlagName)
-		if err != nil {
-			return err
+		if verbose {
+			fmt.Printf("Updating post with slug: %s\n", slug)
 		}
-		fmt.Printf("  Title: %s\n", title)
+
+		updatedPost, err = db.UpdatePostBySlug(ctx, slug, updates)
+		if err != nil {
+			return fmt.Errorf("failed to update post: %w", err)
+		}
 	}
 
-	if contentSet {
-		content, err := cmd.Flags().GetString(contentFlagName)
-		if err != nil {
-			return err
-		}
-		fmt.Printf("  Content: %s\n", content)
+	// Display the updated post
+	fmt.Printf("✅ Post updated successfully!\n")
+	fmt.Printf("ID: %d\n", updatedPost.ID)
+	fmt.Printf("Title: %s\n", updatedPost.Title)
+	if updatedPost.Content != "" {
+		fmt.Printf("Content: %s\n", updatedPost.Content)
 	}
-
-	if authorSet {
-		author, err := cmd.Flags().GetString(authorFlagName)
-		if err != nil {
-			return err
-		}
-		fmt.Printf("  Author: %s\n", author)
+	if updatedPost.Author != "" {
+		fmt.Printf("Author: %s\n", updatedPost.Author)
 	}
+	if updatedPost.Slug != "" {
+		fmt.Printf("Slug: %s\n", updatedPost.Slug)
+	}
+	fmt.Printf("Updated: %s\n", updatedPost.UpdatedAt.Format("2006-01-02 15:04:05"))
 
 	return nil
 }

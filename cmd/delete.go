@@ -5,9 +5,11 @@ Copyright © 2025 dreamsofcode
 package cmd
 
 import (
+	"context"
 	"errors"
 	"fmt"
 
+	"github.com/dreamsofcode-io/cli-cms/internal/database"
 	"github.com/spf13/cobra"
 )
 
@@ -24,6 +26,8 @@ var deleteCmd = &cobra.Command{
 }
 
 func deletePost(cmd *cobra.Command, args []string) error {
+	ctx := context.Background()
+
 	// Check if either id or slug flag was set
 	idSet := cmd.Flags().Changed(idFlagName)
 	slugSet := cmd.Flags().Changed(slugFlagName)
@@ -36,19 +40,51 @@ func deletePost(cmd *cobra.Command, args []string) error {
 		return errors.New("cannot use both --id and --slug flags together")
 	}
 
+	// Get database URL from global flag
+	databaseURL, err := cmd.Flags().GetString(databaseURLFlagName)
+	if err != nil {
+		return err
+	}
+
+	// Get verbose flag
+	verbose, err := cmd.Flags().GetBool(verboseFlagName)
+	if err != nil {
+		return err
+	}
+
 	// Get force flag
 	force, err := cmd.Flags().GetBool(forceFlagName)
 	if err != nil {
 		return err
 	}
 
-	// Display what will be deleted
+	// Get database connection
+	db, err := database.GetDatabase(ctx, databaseURL)
+	if err != nil {
+		return fmt.Errorf("failed to connect to database: %w", err)
+	}
+
 	if idSet {
 		id, err := cmd.Flags().GetInt(idFlagName)
 		if err != nil {
 			return err
 		}
-		fmt.Printf("Deleting post with ID: %d\n", id)
+
+		if verbose {
+			fmt.Printf("Deleting post with ID: %d\n", id)
+		}
+
+		if !force {
+			fmt.Printf("⚠️  Are you sure you want to delete post ID %d? Use --force to skip this confirmation.\n", id)
+			return nil
+		}
+
+		err = db.DeletePostByID(ctx, id)
+		if err != nil {
+			return fmt.Errorf("failed to delete post: %w", err)
+		}
+
+		fmt.Printf("✅ Post with ID %d deleted successfully!\n", id)
 	}
 
 	if slugSet {
@@ -56,13 +92,22 @@ func deletePost(cmd *cobra.Command, args []string) error {
 		if err != nil {
 			return err
 		}
-		fmt.Printf("Deleting post with slug: %s\n", slug)
-	}
 
-	if force {
-		fmt.Println("Force delete enabled - skipping confirmation")
-	} else {
-		fmt.Println("Use --force to skip confirmation")
+		if verbose {
+			fmt.Printf("Deleting post with slug: %s\n", slug)
+		}
+
+		if !force {
+			fmt.Printf("⚠️  Are you sure you want to delete post with slug '%s'? Use --force to skip this confirmation.\n", slug)
+			return nil
+		}
+
+		err = db.DeletePostBySlug(ctx, slug)
+		if err != nil {
+			return fmt.Errorf("failed to delete post: %w", err)
+		}
+
+		fmt.Printf("✅ Post with slug '%s' deleted successfully!\n", slug)
 	}
 
 	return nil

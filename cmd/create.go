@@ -5,9 +5,11 @@ Copyright © 2025 dreamsofcode
 package cmd
 
 import (
+	"context"
 	"errors"
 	"fmt"
 
+	"github.com/dreamsofcode-io/cli-cms/internal/database"
 	"github.com/spf13/cobra"
 )
 
@@ -27,9 +29,23 @@ var createCmd = &cobra.Command{
 }
 
 func createPost(cmd *cobra.Command, args []string) error {
+	ctx := context.Background()
+
 	// Check if required title flag was set
 	if !cmd.Flags().Changed(titleFlagName) {
 		return errors.New("--title flag not set, must be set")
+	}
+
+	// Get database URL from global flag
+	databaseURL, err := cmd.Flags().GetString(databaseURLFlagName)
+	if err != nil {
+		return err
+	}
+
+	// Get verbose flag
+	verbose, err := cmd.Flags().GetBool(verboseFlagName)
+	if err != nil {
+		return err
 	}
 
 	// Get flag values
@@ -53,18 +69,44 @@ func createPost(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	// Display the post information
-	fmt.Printf("Creating new post:\n")
-	fmt.Printf("Title: %s\n", title)
-	if content != "" {
-		fmt.Printf("Content: %s\n", content)
+	// Get database connection
+	db, err := database.GetDatabase(ctx, databaseURL)
+	if err != nil {
+		return fmt.Errorf("failed to connect to database: %w", err)
 	}
-	if author != "" {
-		fmt.Printf("Author: %s\n", author)
+
+	if verbose {
+		fmt.Printf("Database URL: %s\n", databaseURL)
+		fmt.Printf("Creating new post...\n")
 	}
-	if slug != "" {
-		fmt.Printf("Slug: %s\n", slug)
+
+	// Create the post
+	post := database.Post{
+		Title:   title,
+		Content: content,
+		Author:  author,
+		Slug:    slug,
 	}
+
+	createdPost, err := db.CreatePost(ctx, post)
+	if err != nil {
+		return fmt.Errorf("failed to create post: %w", err)
+	}
+
+	// Display the created post information
+	fmt.Printf("✅ Post created successfully!\n")
+	fmt.Printf("ID: %d\n", createdPost.ID)
+	fmt.Printf("Title: %s\n", createdPost.Title)
+	if createdPost.Content != "" {
+		fmt.Printf("Content: %s\n", createdPost.Content)
+	}
+	if createdPost.Author != "" {
+		fmt.Printf("Author: %s\n", createdPost.Author)
+	}
+	if createdPost.Slug != "" {
+		fmt.Printf("Slug: %s\n", createdPost.Slug)
+	}
+	fmt.Printf("Created: %s\n", createdPost.CreatedAt.Format("2006-01-02 15:04:05"))
 
 	return nil
 }
