@@ -1,0 +1,1 @@
+DELETE FROM posts WHERE slug IN ('welcome-to-cms', 'getting-started');

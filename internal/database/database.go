@@ -43,8 +43,8 @@ func New(ctx context.Context, databaseURL string) (*Database, error) {
 
 	database := &Database{db: db}
 
-	// Initialize the schema
-	if err := database.createTables(ctx); err != nil {
+	// Run database migrations
+	if err := performMigrations(databaseURL); err != nil {
 		return nil, err
 	}
 
@@ -56,22 +56,6 @@ func (d *Database) Close() error {
 	return d.db.Close()
 }
 
-// createTables creates the posts table if it doesn't exist
-func (d *Database) createTables(ctx context.Context) error {
-	const createPostsTable = `
-	CREATE TABLE IF NOT EXISTS posts (
-		id INTEGER PRIMARY KEY AUTOINCREMENT,
-		title TEXT NOT NULL,
-		content TEXT,
-		author TEXT,
-		slug TEXT UNIQUE,
-		created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-		updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
-	)`
-
-	_, err := d.db.ExecContext(ctx, createPostsTable)
-	return err
-}
 
 // CreatePost inserts a new post into the database
 func (d *Database) CreatePost(ctx context.Context, post Post) (*Post, error) {
