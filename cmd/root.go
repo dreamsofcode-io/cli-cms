@@ -10,6 +10,11 @@ import (
 	"github.com/spf13/cobra"
 )
 
+const (
+	databaseURLFlagName = "database-url"
+	verboseFlagName     = "verbose"
+)
+
 // rootCmd represents the base command when called without any subcommands
 var rootCmd = &cobra.Command{
 	Use:   "cms",
@@ -26,13 +31,7 @@ func Execute() {
 }
 
 func init() {
-	// Here you will define your flags and configuration settings.
-	// Cobra supports persistent flags, which, if defined here,
-	// will be global for your application.
-
-	// rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default is $HOME/.cli-cms.yaml)")
-
-	// Cobra also supports local flags, which will only run
-	// when this action is called directly.
-	rootCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
+	// Global persistent flags available to all commands
+	rootCmd.PersistentFlags().StringP(databaseURLFlagName, "d", "", "Database URL (e.g., sqlite://./blog.db)")
+	rootCmd.PersistentFlags().BoolP(verboseFlagName, "v", false, "Enable verbose output")
 }

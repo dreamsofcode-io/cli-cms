@@ -10,26 +10,54 @@ import (
 	"github.com/spf13/cobra"
 )
 
+const (
+	limitFlagName  = "limit"
+	offsetFlagName = "offset"
+)
+
 // listCmd represents the list command
 var listCmd = &cobra.Command{
 	Use:   "list",
 	Short: "Used to list all posts",
-	RunE: func(cmd *cobra.Command, args []string) error {
-		fmt.Println("post list called")
-		return nil
-	},
+	RunE:  listPosts,
+}
+
+func listPosts(cmd *cobra.Command, args []string) error {
+	// Get global flags
+	dbURL, err := cmd.Flags().GetString(databaseURLFlagName)
+	if err != nil {
+		return err
+	}
+
+	verbose, err := cmd.Flags().GetBool(verboseFlagName)
+	if err != nil {
+		return err
+	}
+
+	// Get local flags
+	limit, err := cmd.Flags().GetInt(limitFlagName)
+	if err != nil {
+		return err
+	}
+
+	offset, err := cmd.Flags().GetInt(offsetFlagName)
+	if err != nil {
+		return err
+	}
+
+	if verbose {
+		fmt.Printf("Database URL: %s\n", dbURL)
+		fmt.Printf("Limit: %d, Offset: %d\n", limit, offset)
+	}
+
+	fmt.Println("Listing posts...")
+	return nil
 }
 
 func init() {
 	postsCmd.AddCommand(listCmd)
 
-	// Here you will define your flags and configuration settings.
-
-	// Cobra supports Persistent Flags which will work for this command
-	// and all subcommands, e.g.:
-	// listCmd.PersistentFlags().String("foo", "", "A help for foo")
-
-	// Cobra supports local flags which will only run when this command
-	// is called directly, e.g.:
-	// listCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
+	// Add local flags for pagination
+	listCmd.Flags().IntP(limitFlagName, "l", 10, "Maximum number of posts to return")
+	listCmd.Flags().IntP(offsetFlagName, "o", 0, "Number of posts to skip")
 }

@@ -5,31 +5,59 @@ Copyright © 2025 dreamsofcode
 package cmd
 
 import (
+	"errors"
 	"fmt"
 
 	"github.com/spf13/cobra"
+)
+
+const (
+	idFlagName = "id"
 )
 
 // getCmd represents the get command
 var getCmd = &cobra.Command{
 	Use:   "get",
 	Short: "Used to get a single post",
-	RunE: func(cmd *cobra.Command, args []string) error {
-		fmt.Println("post get called")
-		return nil
-	},
+	RunE:  getPost,
+}
+
+func getPost(cmd *cobra.Command, args []string) error {
+	// Check if either id or slug flag was set
+	idSet := cmd.Flags().Changed(idFlagName)
+	slugSet := cmd.Flags().Changed(slugFlagName)
+
+	if !idSet && !slugSet {
+		return errors.New("either --id or --slug flag must be set")
+	}
+
+	if idSet && slugSet {
+		return errors.New("cannot use both --id and --slug flags together")
+	}
+
+	if idSet {
+		id, err := cmd.Flags().GetInt(idFlagName)
+		if err != nil {
+			return err
+		}
+		fmt.Printf("Getting post with ID: %d\n", id)
+	}
+
+	if slugSet {
+		slug, err := cmd.Flags().GetString(slugFlagName)
+		if err != nil {
+			return err
+		}
+		fmt.Printf("Getting post with slug: %s\n", slug)
+	}
+
+	return nil
 }
 
 func init() {
 	postsCmd.AddCommand(getCmd)
 
-	// Here you will define your flags and configuration settings.
-
-	// Cobra supports Persistent Flags which will work for this command
-	// and all subcommands, e.g.:
-	// getCmd.PersistentFlags().String("foo", "", "A help for foo")
-
-	// Cobra supports local flags which will only run when this command
-	// is called directly, e.g.:
-	// getCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
+	// Add flags for post retrieval
+	getCmd.Flags().IntP(idFlagName, "i", 0, "ID of the post to retrieve")
+	getCmd.Flags().StringP(slugFlagName, "s", "", "Slug of the post to retrieve")
 }
