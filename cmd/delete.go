@@ -10,6 +10,7 @@ import (
 	"fmt"
 
 	"github.com/dreamsofcode-io/cli-cms/internal/database"
+	"github.com/dreamsofcode-io/cli-cms/internal/ui"
 	"github.com/spf13/cobra"
 )
 
@@ -71,11 +72,11 @@ func deletePost(cmd *cobra.Command, args []string) error {
 		}
 
 		if verbose {
-			fmt.Printf("Deleting post with ID: %d\n", id)
+			ui.PrintInfo("Deleting post with ID: %d\n", id)
 		}
 
 		if !force {
-			fmt.Printf("⚠️  Are you sure you want to delete post ID %d? Use --force to skip this confirmation.\n", id)
+			ui.PrintWarning("Are you sure you want to delete post ID %d? Use --force to skip this confirmation.\n", id)
 			return nil
 		}
 
@@ -84,7 +85,7 @@ func deletePost(cmd *cobra.Command, args []string) error {
 			return fmt.Errorf("failed to delete post: %w", err)
 		}
 
-		fmt.Printf("✅ Post with ID %d deleted successfully!\n", id)
+		ui.PrintSuccess("Post with ID %d deleted successfully!\n", id)
 	}
 
 	if slugSet {
@@ -94,11 +95,11 @@ func deletePost(cmd *cobra.Command, args []string) error {
 		}
 
 		if verbose {
-			fmt.Printf("Deleting post with slug: %s\n", slug)
+			ui.PrintInfo("Deleting post with slug: %s\n", slug)
 		}
 
 		if !force {
-			fmt.Printf("⚠️  Are you sure you want to delete post with slug '%s'? Use --force to skip this confirmation.\n", slug)
+			ui.PrintWarning("Are you sure you want to delete post with slug '%s'? Use --force to skip this confirmation.\n", slug)
 			return nil
 		}
 
@@ -107,7 +108,7 @@ func deletePost(cmd *cobra.Command, args []string) error {
 			return fmt.Errorf("failed to delete post: %w", err)
 		}
 
-		fmt.Printf("✅ Post with slug '%s' deleted successfully!\n", slug)
+		ui.PrintSuccess("Post with slug '%s' deleted successfully!\n", slug)
 	}
 
 	return nil

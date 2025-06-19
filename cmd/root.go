@@ -5,8 +5,7 @@ Copyright © 2025 dreamsofcode
 package cmd
 
 import (
-	"os"
-
+	"github.com/dreamsofcode-io/cli-cms/internal/ui"
 	"github.com/spf13/cobra"
 )
 
@@ -26,7 +25,7 @@ var rootCmd = &cobra.Command{
 func Execute() {
 	err := rootCmd.Execute()
 	if err != nil {
-		os.Exit(1)
+		ui.ErrorAndExit("Command failed: %v", err)
 	}
 }
 

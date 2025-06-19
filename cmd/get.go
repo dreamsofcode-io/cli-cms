@@ -10,6 +10,7 @@ import (
 	"fmt"
 
 	"github.com/dreamsofcode-io/cli-cms/internal/database"
+	"github.com/dreamsofcode-io/cli-cms/internal/ui"
 	"github.com/spf13/cobra"
 )
 
@@ -66,7 +67,7 @@ func getPost(cmd *cobra.Command, args []string) error {
 		}
 
 		if verbose {
-			fmt.Printf("Getting post with ID: %d\n", id)
+			ui.PrintInfo("Getting post with ID: %d\n", id)
 		}
 
 		post, err = db.GetPostByID(ctx, id)
@@ -82,7 +83,7 @@ func getPost(cmd *cobra.Command, args []string) error {
 		}
 
 		if verbose {
-			fmt.Printf("Getting post with slug: %s\n", slug)
+			ui.PrintInfo("Getting post with slug: %s\n", slug)
 		}
 
 		post, err = db.GetPostBySlug(ctx, slug)
@@ -92,20 +93,24 @@ func getPost(cmd *cobra.Command, args []string) error {
 	}
 
 	// Display the post
-	fmt.Printf("📝 Post Details:\n")
-	fmt.Printf("ID: %d\n", post.ID)
-	fmt.Printf("Title: %s\n", post.Title)
-	if post.Content != "" {
-		fmt.Printf("Content: %s\n", post.Content)
+	ui.Header("Post Details")
+	ui.Field("ID", post.ID)
+	ui.Field("Title", ui.HighlightString(post.Title))
+	if post.Content.Valid {
+		ui.Field("Content", post.Content.String)
 	}
-	if post.Author != "" {
-		fmt.Printf("Author: %s\n", post.Author)
+	if post.Author.Valid {
+		ui.Field("Author", post.Author.String)
 	}
-	if post.Slug != "" {
-		fmt.Printf("Slug: %s\n", post.Slug)
+	if post.Slug.Valid {
+		ui.Field("Slug", ui.LinkString(post.Slug.String))
 	}
-	fmt.Printf("Created: %s\n", post.CreatedAt.Format("2006-01-02 15:04:05"))
-	fmt.Printf("Updated: %s\n", post.UpdatedAt.Format("2006-01-02 15:04:05"))
+	if post.CreatedAt.Valid {
+		ui.Field("Created", post.CreatedAt.Time.Format("2006-01-02 15:04:05"))
+	}
+	if post.UpdatedAt.Valid {
+		ui.Field("Updated", post.UpdatedAt.Time.Format("2006-01-02 15:04:05"))
+	}
 
 	return nil
 }

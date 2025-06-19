@@ -11,6 +11,7 @@ import (
 
 	"github.com/dreamsofcode-io/cli-cms/internal/database"
 	"github.com/dreamsofcode-io/cli-cms/internal/editor"
+	"github.com/dreamsofcode-io/cli-cms/internal/ui"
 	"github.com/spf13/cobra"
 )
 
@@ -88,7 +89,8 @@ func updatePost(cmd *cobra.Command, args []string) error {
 	}
 
 	// Build the update struct with only changed fields
-	var updates database.Post
+	// Start with existing values
+	updates := *existingPost
 
 	if titleSet {
 		updates.Title, err = cmd.Flags().GetString(titleFlagName)
@@ -98,10 +100,11 @@ func updatePost(cmd *cobra.Command, args []string) error {
 	}
 
 	if authorSet {
-		updates.Author, err = cmd.Flags().GetString(authorFlagName)
+		author, err := cmd.Flags().GetString(authorFlagName)
 		if err != nil {
 			return err
 		}
+		updates.Author = database.StringToNullString(author)
 	}
 
 	// Handle content updates
@@ -114,7 +117,7 @@ func updatePost(cmd *cobra.Command, args []string) error {
 
 		if useEditor {
 			if verbose {
-				fmt.Printf("Opening editor for content editing...\n")
+				ui.PrintInfo("Opening editor for content editing...\n")
 			}
 
 			ed := editor.New()
@@ -123,32 +126,33 @@ func updatePost(cmd *cobra.Command, args []string) error {
 			}
 
 			if verbose {
-				fmt.Printf("Using editor: %s\n", ed.GetEditorInfo())
+				ui.PrintInfo("Using editor: %s\n", ed.GetEditorInfo())
 			}
 
 			// Use existing post data for template
 			templateTitle := existingPost.Title
-			templateAuthor := existingPost.Author
+			templateAuthor := database.NullStringToString(existingPost.Author)
 			if titleSet {
 				templateTitle = updates.Title
 			}
 			if authorSet {
-				templateAuthor = updates.Author
+				templateAuthor = database.NullStringToString(updates.Author)
 			}
 
-			editedContent, err := ed.EditContentWithTemplate(templateTitle, templateAuthor, existingPost.Content, true)
+			editedContent, err := ed.EditContentWithTemplate(templateTitle, templateAuthor, database.NullStringToString(existingPost.Content), true)
 			if err != nil {
 				return fmt.Errorf("failed to edit content: %w", err)
 			}
 
-			updates.Content = editedContent
+			updates.Content = database.StringToNullString(editedContent)
 		}
 	} else if contentSet {
 		// Get content from flag
-		updates.Content, err = cmd.Flags().GetString(contentFlagName)
+		content, err := cmd.Flags().GetString(contentFlagName)
 		if err != nil {
 			return err
 		}
+		updates.Content = database.StringToNullString(content)
 	}
 
 	var updatedPost *database.Post
@@ -160,7 +164,7 @@ func updatePost(cmd *cobra.Command, args []string) error {
 		}
 
 		if verbose {
-			fmt.Printf("Updating post with ID: %d\n", id)
+			ui.PrintInfo("Updating post with ID: %d\n", id)
 		}
 
 		updatedPost, err = db.UpdatePostByID(ctx, id, updates)
@@ -176,7 +180,7 @@ func updatePost(cmd *cobra.Command, args []string) error {
 		}
 
 		if verbose {
-			fmt.Printf("Updating post with slug: %s\n", slug)
+			ui.PrintInfo("Updating post with slug: %s\n", slug)
 		}
 
 		updatedPost, err = db.UpdatePostBySlug(ctx, slug, updates)
@@ -186,19 +190,21 @@ func updatePost(cmd *cobra.Command, args []string) error {
 	}
 
 	// Display the updated post
-	fmt.Printf("✅ Post updated successfully!\n")
-	fmt.Printf("ID: %d\n", updatedPost.ID)
-	fmt.Printf("Title: %s\n", updatedPost.Title)
-	if updatedPost.Content != "" {
-		fmt.Printf("Content: %s\n", updatedPost.Content)
+	ui.PrintSuccess("Post updated successfully!\n")
+	ui.Field("ID", updatedPost.ID)
+	ui.Field("Title", ui.HighlightString(updatedPost.Title))
+	if updatedPost.Content.Valid {
+		ui.Field("Content", updatedPost.Content.String)
 	}
-	if updatedPost.Author != "" {
-		fmt.Printf("Author: %s\n", updatedPost.Author)
+	if updatedPost.Author.Valid {
+		ui.Field("Author", updatedPost.Author.String)
 	}
-	if updatedPost.Slug != "" {
-		fmt.Printf("Slug: %s\n", updatedPost.Slug)
+	if updatedPost.Slug.Valid {
+		ui.Field("Slug", ui.LinkString(updatedPost.Slug.String))
 	}
-	fmt.Printf("Updated: %s\n", updatedPost.UpdatedAt.Format("2006-01-02 15:04:05"))
+	if updatedPost.UpdatedAt.Valid {
+		ui.Field("Updated", updatedPost.UpdatedAt.Time.Format("2006-01-02 15:04:05"))
+	}
 
 	return nil
 }

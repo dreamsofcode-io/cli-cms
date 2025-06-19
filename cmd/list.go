@@ -11,6 +11,7 @@ import (
 	"os"
 
 	"github.com/dreamsofcode-io/cli-cms/internal/database"
+	"github.com/dreamsofcode-io/cli-cms/internal/ui"
 	"github.com/spf13/cobra"
 )
 
@@ -73,33 +74,42 @@ func listPosts(cmd *cobra.Command, args []string) error {
 		return nil
 	}
 
+	// Display header
+	ui.Header("Posts")
+	
 	// Use tabwriter for formatted output
 	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "ID\tTITLE\tAUTHOR\tSLUG\tCREATED")
-	fmt.Fprintln(w, "--\t-----\t------\t----\t-------")
+	fmt.Fprintln(w, ui.HighlightString("ID\tTITLE\tAUTHOR\tSLUG\tCREATED"))
+	fmt.Fprintln(w, ui.SubtleString("--\t-----\t------\t----\t-------"))
 
 	for _, post := range posts {
-		author := post.Author
-		if author == "" {
-			author = "(no author)"
+		author := "(no author)"
+		if post.Author.Valid {
+			author = post.Author.String
 		}
 
-		slug := post.Slug
-		if slug == "" {
-			slug = "(no slug)"
+		slug := "(no slug)"
+		if post.Slug.Valid {
+			slug = post.Slug.String
+		}
+
+		created := "(no date)"
+		if post.CreatedAt.Valid {
+			created = post.CreatedAt.Time.Format("2006-01-02 15:04")
 		}
 
 		fmt.Fprintf(w, "%d\t%s\t%s\t%s\t%s\n",
 			post.ID,
-			post.Title,
+			ui.HighlightString(post.Title),
 			author,
-			slug,
-			post.CreatedAt.Format("2006-01-02 15:04"),
+			ui.LinkString(slug),
+			ui.SubtleString(created),
 		)
 	}
 
 	w.Flush()
-	fmt.Printf("\n📊 Found %d post(s)\n", len(posts))
+	fmt.Printf("\n")
+	ui.PrintInfo("Found %d post(s)\n", len(posts))
 
 	return nil
 }

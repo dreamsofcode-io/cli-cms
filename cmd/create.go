@@ -11,6 +11,7 @@ import (
 
 	"github.com/dreamsofcode-io/cli-cms/internal/database"
 	"github.com/dreamsofcode-io/cli-cms/internal/editor"
+	"github.com/dreamsofcode-io/cli-cms/internal/ui"
 	"github.com/spf13/cobra"
 )
 
@@ -77,7 +78,7 @@ func createPost(cmd *cobra.Command, args []string) error {
 	if useEditor {
 		// Use editor for content input
 		if verbose {
-			fmt.Printf("Opening editor for content input...\n")
+			ui.PrintInfo("Opening editor for content input...\n")
 		}
 
 		ed := editor.New()
@@ -86,7 +87,7 @@ func createPost(cmd *cobra.Command, args []string) error {
 		}
 
 		if verbose {
-			fmt.Printf("Using editor: %s\n", ed.GetEditorInfo())
+			ui.PrintInfo("Using editor: %s\n", ed.GetEditorInfo())
 		}
 
 		editedContent, err := ed.EditContentWithTemplate(title, author, "", false)
@@ -114,17 +115,12 @@ func createPost(cmd *cobra.Command, args []string) error {
 	}
 
 	if verbose {
-		fmt.Printf("Database URL: %s\n", databaseURL)
-		fmt.Printf("Creating new post...\n")
+		ui.PrintInfo("Database URL: %s\n", databaseURL)
+		ui.PrintInfo("Creating new post...\n")
 	}
 
-	// Create the post
-	post := database.Post{
-		Title:   title,
-		Content: content,
-		Author:  author,
-		Slug:    slug,
-	}
+	// Create the post using helper function
+	post := database.CreatePostFromInput(title, content, author, slug)
 
 	createdPost, err := db.CreatePost(ctx, post)
 	if err != nil {
@@ -132,19 +128,21 @@ func createPost(cmd *cobra.Command, args []string) error {
 	}
 
 	// Display the created post information
-	fmt.Printf("✅ Post created successfully!\n")
-	fmt.Printf("ID: %d\n", createdPost.ID)
-	fmt.Printf("Title: %s\n", createdPost.Title)
-	if createdPost.Content != "" {
-		fmt.Printf("Content: %s\n", createdPost.Content)
+	ui.PrintSuccess("Post created successfully!\n")
+	ui.Field("ID", createdPost.ID)
+	ui.Field("Title", ui.HighlightString(createdPost.Title))
+	if createdPost.Content.Valid {
+		ui.Field("Content", createdPost.Content.String)
 	}
-	if createdPost.Author != "" {
-		fmt.Printf("Author: %s\n", createdPost.Author)
+	if createdPost.Author.Valid {
+		ui.Field("Author", createdPost.Author.String)
 	}
-	if createdPost.Slug != "" {
-		fmt.Printf("Slug: %s\n", createdPost.Slug)
+	if createdPost.Slug.Valid {
+		ui.Field("Slug", ui.LinkString(createdPost.Slug.String))
 	}
-	fmt.Printf("Created: %s\n", createdPost.CreatedAt.Format("2006-01-02 15:04:05"))
+	if createdPost.CreatedAt.Valid {
+		ui.Field("Created", createdPost.CreatedAt.Time.Format("2006-01-02 15:04:05"))
+	}
 
 	return nil
 }
