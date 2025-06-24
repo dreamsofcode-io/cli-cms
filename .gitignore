@@ -1,2 +1,4 @@
 cms
+cli-cms
 cms.db
+**/mock_handler/*.go

@@ -10,8 +10,8 @@ import (
 	"fmt"
 
 	"github.com/dreamsofcode-io/cli-cms/internal/database"
-	"github.com/dreamsofcode-io/cli-cms/internal/editor"
 	"github.com/dreamsofcode-io/cli-cms/internal/forms"
+	"github.com/dreamsofcode-io/cli-cms/internal/handler"
 	"github.com/dreamsofcode-io/cli-cms/internal/ui"
 	"github.com/spf13/cobra"
 )
@@ -96,41 +96,6 @@ func createPost(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	var content string
-
-	if useEditor {
-		// Use editor for content input
-		if verbose {
-			ui.PrintInfo("Opening editor for content input...\n")
-		}
-
-		ed := editor.New()
-		if !ed.IsAvailable() {
-			return fmt.Errorf("editor not available: %s", ed.GetEditorInfo())
-		}
-
-		if verbose {
-			ui.PrintInfo("Using editor: %s\n", ed.GetEditorInfo())
-		}
-
-		editedContent, err := ed.EditContentWithTemplate(title, author, "", false)
-		if err != nil {
-			return fmt.Errorf("failed to edit content: %w", err)
-		}
-
-		content = editedContent
-
-		if content == "" {
-			return errors.New("content cannot be empty when using editor")
-		}
-	} else {
-		// Get content from flag
-		content, err = cmd.Flags().GetString(contentFlagName)
-		if err != nil {
-			return err
-		}
-	}
-
 	// Get database connection
 	db, err := database.GetDatabase(ctx, databaseURL)
 	if err != nil {
@@ -142,12 +107,32 @@ func createPost(cmd *cobra.Command, args []string) error {
 		ui.PrintInfo("Creating new post...\n")
 	}
 
-	// Create the post using helper function
-	post := database.CreatePostFromInput(title, content, author, slug)
+	// Create posts handler
+	postsHandler := handler.NewPosts(db)
 
-	createdPost, err := db.CreatePost(ctx, post)
-	if err != nil {
-		return fmt.Errorf("failed to create post: %w", err)
+	var createdPost *database.Post
+
+	if useEditor {
+		// Use editor for content input
+		if verbose {
+			ui.PrintInfo("Opening editor for content input...\n")
+		}
+
+		createdPost, err = postsHandler.CreatePost(ctx, title, author, slug, true)
+		if err != nil {
+			return err
+		}
+	} else {
+		// Get content from flag
+		content, err := cmd.Flags().GetString(contentFlagName)
+		if err != nil {
+			return err
+		}
+
+		createdPost, err = postsHandler.CreatePostWithContent(ctx, title, content, author, slug)
+		if err != nil {
+			return err
+		}
 	}
 
 	// Display the created post information
