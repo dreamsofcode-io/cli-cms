@@ -12,6 +12,7 @@ import (
 const (
 	databaseURLFlagName = "database-url"
 	verboseFlagName     = "verbose"
+	interactiveFlagName = "interactive"
 )
 
 // rootCmd represents the base command when called without any subcommands
@@ -33,4 +34,5 @@ func init() {
 	// Global persistent flags available to all commands
 	rootCmd.PersistentFlags().StringP(databaseURLFlagName, "d", "", "Database URL (e.g., sqlite://./blog.db)")
 	rootCmd.PersistentFlags().BoolP(verboseFlagName, "v", false, "Enable verbose output")
+	rootCmd.PersistentFlags().BoolP(interactiveFlagName, "i", false, "Use interactive forms for input")
 }
